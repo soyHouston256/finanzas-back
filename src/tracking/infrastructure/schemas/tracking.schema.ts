@@ -3,7 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type TrackingDocument = HydratedDocument<TrackingSchemaClass>;
 
-@Schema({ timestamps: true, collection: 'tracking' })
+@Schema({ timestamps: true, collection: 'budget_tracking' })
 export class TrackingSchemaClass {
   @Prop({ required: true })
   month: number;

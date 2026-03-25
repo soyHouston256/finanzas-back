@@ -21,8 +21,9 @@ export class MongooseGoalRepository implements IGoalRepository {
       Number(raw.current ?? raw.current_amount ?? raw.currentAmount ?? 0) || 0;
     const name = String(raw.name ?? 'Meta');
     const date = String(raw.date ?? raw.target_date ?? raw.targetDate ?? '');
-    const payment = Number(raw.payment ?? 0) || 0;
-    const installment = String(raw.installment ?? '');
+    const notes = String(raw.notes ?? '');
+    const payment = Number(raw.payment ?? this.extractPaymentFromNotes(notes) ?? 0) || 0;
+    const installment = String(raw.installment ?? this.extractInstallmentFromNotes(notes) ?? '');
 
     const idValue = raw._id as Types.ObjectId | string | undefined;
     const plain = {
@@ -35,6 +36,17 @@ export class MongooseGoalRepository implements IGoalRepository {
       installment,
     };
     return plainToInstance(Goal, plain);
+  }
+
+  private extractPaymentFromNotes(notes: string): number {
+    const match = notes.match(/S\/([\d,]+(?:\.\d+)?)[/ ]mes/i);
+    if (!match) return 0;
+    return Number(match[1].replace(/,/g, '')) || 0;
+  }
+
+  private extractInstallmentFromNotes(notes: string): string {
+    const match = notes.match(/cuota\s+(\d+\/\d+)/i);
+    return match?.[1] ?? '';
   }
 
   async findAll(): Promise<Goal[]> {

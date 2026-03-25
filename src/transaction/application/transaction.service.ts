@@ -1,7 +1,12 @@
 import { Injectable, Inject, NotFoundException } from '@nestjs/common';
 import type { ITransactionRepository } from '../domain/transaction.repository';
 import { Transaction } from '../domain/transaction.entity';
+import {
+  TransactionPage,
+  TransactionPeriod,
+} from '../domain/transaction-page';
 import { CreateTransactionDto } from '../presentation/dto/create-transaction.dto';
+import { QueryTransactionsDto } from '../presentation/dto/query-transactions.dto';
 import { UpdateTransactionDto } from '../presentation/dto/update-transaction.dto';
 
 @Injectable()
@@ -11,8 +16,12 @@ export class TransactionService {
     private readonly transactionRepository: ITransactionRepository,
   ) {}
 
-  findAll(): Promise<Transaction[]> {
-    return this.transactionRepository.findAll();
+  findAll(query: QueryTransactionsDto): Promise<TransactionPage> {
+    return this.transactionRepository.findAll(query);
+  }
+
+  findAvailablePeriods(): Promise<TransactionPeriod[]> {
+    return this.transactionRepository.findAvailablePeriods();
   }
 
   async findById(id: string): Promise<Transaction> {

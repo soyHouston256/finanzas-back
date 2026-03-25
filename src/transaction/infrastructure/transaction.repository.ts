@@ -4,6 +4,7 @@ import { Model } from 'mongoose';
 import { plainToInstance } from 'class-transformer';
 import { ITransactionRepository } from '../domain/transaction.repository';
 import { Transaction } from '../domain/transaction.entity';
+import { TransactionPage, TransactionPeriod } from '../domain/transaction-page';
 import {
   TransactionSchemaClass,
   TransactionDocument,
@@ -29,9 +30,82 @@ export class MongooseTransactionRepository implements ITransactionRepository {
     return plainToInstance(Transaction, plain);
   }
 
-  async findAll(): Promise<Transaction[]> {
-    const docs = await this.transactionModel.find().exec();
-    return docs.map((doc) => this.toEntity(doc));
+  private buildDateFilter(month?: number, year?: number) {
+    if (!month || !year) return {};
+    const monthString = String(month).padStart(2, '0');
+    return {
+      date: {
+        $gte: `${year}-${monthString}-01`,
+        $lte: `${year}-${monthString}-31`,
+      },
+    };
+  }
+
+  async findAll(params?: {
+    page?: number;
+    limit?: number;
+    month?: number;
+    year?: number;
+  }): Promise<TransactionPage> {
+    const page = Math.max(params?.page ?? 1, 1);
+    const limit = Math.min(Math.max(params?.limit ?? 50, 1), 100);
+    const filter = this.buildDateFilter(params?.month, params?.year);
+
+    const [docs, total] = await Promise.all([
+      this.transactionModel
+        .find(filter)
+        .sort({ date: -1, _id: -1 })
+        .skip((page - 1) * limit)
+        .limit(limit)
+        .exec(),
+      this.transactionModel.countDocuments(filter).exec(),
+    ]);
+
+    return {
+      items: docs.map((doc) => this.toEntity(doc)),
+      page,
+      limit,
+      total,
+      hasMore: page * limit < total,
+    };
+  }
+
+  async findAvailablePeriods(): Promise<TransactionPeriod[]> {
+    const docs = (await this.transactionModel
+      .aggregate([
+        {
+          $match: {
+            date: { $type: 'string', $regex: /^\d{4}-\d{2}-\d{2}$/ },
+          },
+        },
+        {
+          $project: {
+            year: { $toInt: { $substrBytes: ['$date', 0, 4] } },
+            month: { $toInt: { $substrBytes: ['$date', 5, 2] } },
+          },
+        },
+        {
+          $group: {
+            _id: {
+              year: '$year',
+              month: '$month',
+            },
+          },
+        },
+        {
+          $sort: {
+            '_id.year': -1,
+            '_id.month': -1,
+          },
+        },
+      ])
+      .exec()) as Array<{ _id: { year: number; month: number } }>;
+
+    return docs.map((doc) => ({
+      key: `${doc._id.year}-${String(doc._id.month).padStart(2, '0')}`,
+      year: doc._id.year,
+      month: doc._id.month,
+    }));
   }
 
   async findById(id: string): Promise<Transaction | null> {

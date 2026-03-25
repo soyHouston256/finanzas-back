@@ -8,9 +8,11 @@ import {
   Body,
   HttpCode,
   HttpStatus,
+  Query,
 } from '@nestjs/common';
 import { TransactionService } from '../application/transaction.service';
 import { CreateTransactionDto } from './dto/create-transaction.dto';
+import { QueryTransactionsDto } from './dto/query-transactions.dto';
 import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 @Controller('transactions')
@@ -18,8 +20,13 @@ export class TransactionController {
   constructor(private readonly transactionService: TransactionService) {}
 
   @Get()
-  findAll() {
-    return this.transactionService.findAll();
+  findAll(@Query() query: QueryTransactionsDto) {
+    return this.transactionService.findAll(query);
+  }
+
+  @Get('periods')
+  findPeriods() {
+    return this.transactionService.findAvailablePeriods();
   }
 
   @Get(':id')
